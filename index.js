@@ -29,7 +29,9 @@ const scrapTypesRouter = require('./routes/scrapTypes');
 const contactRouter = require('./routes/contact');
 
 const app = express();
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+// Default to 3006 to avoid colliding with Next.js dev (often 3000).
+// Always respect platform-provided PORT (Render, etc.).
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3006;
 
 // Start background dispatcher tasks (expiry enforcement)
 dispatcher.startDispatcherSweeper();

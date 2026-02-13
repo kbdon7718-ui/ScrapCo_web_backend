@@ -3,11 +3,13 @@ const { createPublicAnonClient } = require('../supabase/client');
 
 const router = express.Router();
 
-const DEFAULT_TYPES = [
-  { name: 'Plastic', ratePerKg: 11 },
-  { name: 'Cardboard', ratePerKg: 12 },
-  { name: 'Metal', ratePerKg: 25 },
-  { name: 'Paper', ratePerKg: 8 },
+// Fallback types keep the UI usable but DO NOT include fake "live" rates.
+// Real rates should come from Supabase tables: scrap_types + scrap_rates.
+const FALLBACK_TYPES = [
+  { id: 'plastic', name: 'Plastic', ratePerKg: null },
+  { id: 'cardboard', name: 'Cardboard', ratePerKg: null },
+  { id: 'metal', name: 'Metal', ratePerKg: null },
+  { id: 'paper', name: 'Paper', ratePerKg: null },
 ];
 
 // GET /api/scrap-types
@@ -19,7 +21,7 @@ router.get('/', async (req, res) => {
       supabase = createPublicAnonClient();
     } catch (e) {
       // If Supabase env vars are not configured, keep the UI usable.
-      return res.json({ success: true, count: DEFAULT_TYPES.length, types: DEFAULT_TYPES });
+      return res.json({ success: true, source: 'fallback', count: FALLBACK_TYPES.length, types: FALLBACK_TYPES });
     }
 
     const { data: types, error: typesErr } = await supabase
@@ -29,7 +31,7 @@ router.get('/', async (req, res) => {
 
     if (typesErr) {
       console.warn('scrap_types query failed; returning defaults:', typesErr.message);
-      return res.json({ success: true, count: DEFAULT_TYPES.length, types: DEFAULT_TYPES });
+      return res.json({ success: true, source: 'fallback', count: FALLBACK_TYPES.length, types: FALLBACK_TYPES });
     }
 
     const { data: rates, error: ratesErr } = await supabase
@@ -39,7 +41,21 @@ router.get('/', async (req, res) => {
 
     if (ratesErr) {
       console.warn('scrap_rates query failed; returning defaults:', ratesErr.message);
-      return res.json({ success: true, count: DEFAULT_TYPES.length, types: DEFAULT_TYPES });
+      // Types are still real, but rates couldn't be loaded.
+      const outNoRates = (types || []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        ratePerKg: null,
+      }));
+
+      return res.json({
+        success: true,
+        source: 'supabase',
+        warning: 'rates_unavailable',
+        count: outNoRates.length,
+        types: outNoRates,
+      });
     }
 
     const latestRateByType = new Map();
@@ -63,10 +79,10 @@ router.get('/', async (req, res) => {
     }));
 
     if (!out.length) {
-      return res.json({ success: true, count: DEFAULT_TYPES.length, types: DEFAULT_TYPES });
+      return res.json({ success: true, source: 'fallback', count: FALLBACK_TYPES.length, types: FALLBACK_TYPES });
     }
 
-    return res.json({ success: true, count: out.length, types: out });
+    return res.json({ success: true, source: 'supabase', count: out.length, types: out });
   } catch (err) {
     console.error('Failed to fetch scrap types', err);
     return res.status(500).json({ success: false, error: 'Could not fetch scrap types' });
