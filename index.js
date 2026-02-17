@@ -27,6 +27,8 @@ const vendorRouter = require('./routes/vendor');
 // Admin portal is served from a separate admin backend.
 const scrapTypesRouter = require('./routes/scrapTypes');
 const contactRouter = require('./routes/contact');
+const blogRouter = require('./routes/blog');
+const adminBlogRouter = require('./routes/adminBlog');
 
 const app = express();
 // Default to 3006 to avoid colliding with Next.js dev (often 3000).
@@ -72,6 +74,12 @@ app.use('/api/scrap-types', scrapTypesRouter);
 
 // 5) Website contact form
 app.use('/api/contact', contactRouter);
+
+// 6) Website blog (public)
+app.use('/api/blog', blogRouter);
+
+// 7) Blog admin (protected by ADMIN_API_KEY)
+app.use('/api/admin/blog', adminBlogRouter);
 
 // -----------------------------
 // ERROR HANDLING
